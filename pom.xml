@@ -55,14 +55,6 @@
             </dependency>
 
             <dependency>
-                <groupId>org.kie.kogito</groupId>
-                <artifactId>kogito-quarkus-bom</artifactId>
-                <version>${kogito.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <dependency>
                 <groupId>com.ecommerce</groupId>
                 <artifactId>shared-models</artifactId>
                 <version>${project.version}</version>
@@ -72,6 +64,12 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>${jackson.version}</version>
             </dependency>
 
             <dependency>

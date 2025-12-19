@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,10 +27,14 @@ class FraudDetectionServiceTest {
     private Order suspiciousOrder;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        setField(fraudDetectionService, "fraudDetectionEnabled", true);
+        setField(fraudDetectionService, "highRiskThreshold", 70.0);
+        setField(fraudDetectionService, "suspiciousThreshold", 50.0);
+
         normalOrder = createOrder(
             "ORD-001",
-            new BigDecimal("500000"), 
+            new BigDecimal("500000"),
             PaymentMethod.CREDIT_CARD,
             1,
             true,
@@ -38,12 +43,18 @@ class FraudDetectionServiceTest {
 
         suspiciousOrder = createOrder(
             "ORD-002",
-            new BigDecimal("15000000"), 
+            new BigDecimal("15000000"),
             PaymentMethod.COD,
-            0, 
-            false, 
-            LocalDateTime.of(2024, 1, 15, 2, 30) 
+            0,
+            false,
+            LocalDateTime.of(2024, 1, 15, 2, 30)
         );
+    }
+
+    private void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 
     @Test

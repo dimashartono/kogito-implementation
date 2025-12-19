@@ -43,7 +43,9 @@ class ProcessPaymentTest {
     void setUp() {
         processPayment = new ProcessPayment();
         testOrder = createTestOrder(PaymentMethod.CREDIT_CARD);
+    }
 
+    private void stubWorkItemWithOrder() {
         when(workItem.getParameter("order")).thenReturn(testOrder);
         when(workItem.getStringId()).thenReturn("workitem-123");
     }
@@ -51,6 +53,7 @@ class ProcessPaymentTest {
     @Test
     @DisplayName("Should process COD payment successfully")
     void testCODPaymentSuccess() {
+        stubWorkItemWithOrder();
         testOrder.getPayment().setMethod(PaymentMethod.COD);
 
         processPayment.executeWorkItem(workItem, workItemManager);
@@ -69,6 +72,7 @@ class ProcessPaymentTest {
     @Test
     @DisplayName("Should process credit card payment")
     void testCreditCardPayment() {
+        stubWorkItemWithOrder();
         testOrder.getPayment().setMethod(PaymentMethod.CREDIT_CARD);
 
         processPayment.executeWorkItem(workItem, workItemManager);
@@ -87,6 +91,7 @@ class ProcessPaymentTest {
     @Test
     @DisplayName("Should process e-wallet payment")
     void testEWalletPayment() {
+        stubWorkItemWithOrder();
         testOrder.getPayment().setMethod(PaymentMethod.E_WALLET);
 
         processPayment.executeWorkItem(workItem, workItemManager);
@@ -101,6 +106,7 @@ class ProcessPaymentTest {
     @DisplayName("Should handle null order gracefully")
     void testNullOrder() {
         when(workItem.getParameter("order")).thenReturn(null);
+        when(workItem.getStringId()).thenReturn("workitem-123");
 
         processPayment.executeWorkItem(workItem, workItemManager);
 
@@ -113,6 +119,7 @@ class ProcessPaymentTest {
     @Test
     @DisplayName("Should generate transaction ID on success")
     void testTransactionIdGeneration() {
+        stubWorkItemWithOrder();
         testOrder.getPayment().setMethod(PaymentMethod.COD);
 
         processPayment.executeWorkItem(workItem, workItemManager);
