@@ -1,0 +1,185 @@
+image: maven:3.9.5-eclipse-temurin-17
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .m2/repository/
+    - */target/
+
+stages:
+  - validate
+  - build
+  - test
+  - package
+  - docker
+
+validate:
+  stage: validate
+  script:
+    - echo "Validating Maven project structure..."
+    - mvn $MAVEN_CLI_OPTS validate
+    - mvn $MAVEN_CLI_OPTS dependency:resolve
+  only:
+    - branches
+    - merge_requests
+  tags:
+    - docker
+
+build:
+  stage: build
+  script:
+    - echo "Building all modules..."
+    - mvn $MAVEN_CLI_OPTS clean compile
+  artifacts:
+    paths:
+      - "*/target/"
+    expire_in: 1 hour
+  only:
+    - branches
+    - merge_requests
+  tags:
+    - docker
+
+test:shared-models:
+  stage: test
+  script:
+    - echo "Running tests for shared-models module..."
+    - cd shared-models
+    - mvn $MAVEN_CLI_OPTS test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    reports:
+      junit:
+        - shared-models/target/surefire-reports/TEST-*.xml
+    paths:
+      - shared-models/target/surefire-reports/
+    expire_in: 1 week
+  only:
+    - branches
+    - merge_requests
+  tags:
+    - docker
+
+test:kafka-stream-processor:
+  stage: test
+  script:
+    - echo "Running tests for kafka-stream-processor module..."
+    - cd kafka-stream-processor
+    - mvn $MAVEN_CLI_OPTS test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    reports:
+      junit:
+        - kafka-stream-processor/target/surefire-reports/TEST-*.xml
+    paths:
+      - kafka-stream-processor/target/surefire-reports/
+    expire_in: 1 week
+  only:
+    - branches
+    - merge_requests
+  tags:
+    - docker
+
+test:kogito-checkout-service:
+  stage: test
+  script:
+    - echo "Running tests for kogito-checkout-service module..."
+    - cd kogito-checkout-service
+    - mvn $MAVEN_CLI_OPTS test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  artifacts:
+    reports:
+      junit:
+        - kogito-checkout-service/target/surefire-reports/TEST-*.xml
+    paths:
+      - kogito-checkout-service/target/surefire-reports/
+    expire_in: 1 week
+  only:
+    - branches
+    - merge_requests
+  tags:
+    - docker
+
+package:
+  stage: package
+  script:
+    - echo "Packaging applications..."
+    - mvn $MAVEN_CLI_OPTS package -DskipTests
+  artifacts:
+    paths:
+      - kafka-stream-processor/target/*.jar
+      - kogito-checkout-service/target/*.jar
+    expire_in: 1 week
+  only:
+    - main
+    - develop
+    - tags
+  tags:
+    - docker
+
+docker:kafka-stream-processor:
+  stage: docker
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker info
+  script:
+    - echo "Building Docker image for kafka-stream-processor..."
+    - cd kafka-stream-processor
+    - |
+      if [ -f "src/main/docker/Dockerfile.jvm" ]; then
+        docker build -f src/main/docker/Dockerfile.jvm -t $CI_REGISTRY_IMAGE/kafka-stream-processor:$CI_COMMIT_SHORT_SHA .
+        docker tag $CI_REGISTRY_IMAGE/kafka-stream-processor:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE/kafka-stream-processor:latest
+      else
+        echo "Dockerfile not found, skipping Docker build"
+      fi
+  only:
+    - main
+    - tags
+  when: manual
+  tags:
+    - docker
+
+docker:kogito-checkout-service:
+  stage: docker
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker info
+  script:
+    - echo "Building Docker image for kogito-checkout-service..."
+    - cd kogito-checkout-service
+    - |
+      if [ -f "src/main/docker/Dockerfile.jvm" ]; then
+        docker build -f src/main/docker/Dockerfile.jvm -t $CI_REGISTRY_IMAGE/kogito-checkout-service:$CI_COMMIT_SHORT_SHA .
+        docker tag $CI_REGISTRY_IMAGE/kogito-checkout-service:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE/kogito-checkout-service:latest
+      else
+        echo "Dockerfile not found, skipping Docker build"
+      fi
+  only:
+    - main
+    - tags
+  when: manual
+  tags:
+    - docker
+
+code-quality:
+  stage: validate
+  script:
+    - echo "Running code quality checks..."
+    - mvn $MAVEN_CLI_OPTS checkstyle:check || true
+  allow_failure: true
+  only:
+    - merge_requests
+  tags:
+    - docker

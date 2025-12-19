@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:drools="http://www.jboss.org/drools"
+                   id="Definitions_1"
+                   targetNamespace="http://www.jboss.org/drools"
+                   typeLanguage="http://www.java.com/javaTypes"
+                   expressionLanguage="http://www.mvel.org/2.0">
+
+  <!-- Item Definitions -->
+  <bpmn2:itemDefinition id="_paymentSuccessItem" structureRef="java.lang.Boolean"/>
+  <bpmn2:itemDefinition id="_orderIdItem" structureRef="java.lang.String"/>
+
+  <bpmn2:process id="checkoutProcess" name="E-Commerce Checkout Process" isExecutable="true" processType="Public">
+
+    <!-- Process Variables -->
+    <bpmn2:property id="paymentSuccess" itemSubjectRef="_paymentSuccessItem"/>
+    <bpmn2:property id="orderId" itemSubjectRef="_orderIdItem"/>
+
+    <!-- Start Event -->
+    <bpmn2:startEvent id="StartEvent_1" name="Start Checkout">
+      <bpmn2:outgoing>Flow_1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <!-- Script Task 1: Validate Cart -->
+    <bpmn2:scriptTask id="ServiceTask_ValidateCart" name="Validate Cart" scriptFormat="java">
+      <bpmn2:incoming>Flow_1</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_2</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("Validating cart...");</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Script Task 2: Calculate Total -->
+    <bpmn2:scriptTask id="ServiceTask_CalculateTotal" name="Calculate Total" scriptFormat="java">
+      <bpmn2:incoming>Flow_2</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_3</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("Calculating total...");</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Script Task 3: Process Payment -->
+    <bpmn2:scriptTask id="ServiceTask_ProcessPayment" name="Process Payment" scriptFormat="java">
+      <bpmn2:incoming>Flow_3</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_4</bpmn2:outgoing>
+      <bpmn2:script>kcontext.setVariable("paymentSuccess", true);</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Exclusive Gateway: Check Payment Status -->
+    <bpmn2:exclusiveGateway id="Gateway_PaymentCheck" name="Payment Success?" gatewayDirection="Diverging" default="Flow_PaymentFailed">
+      <bpmn2:incoming>Flow_4</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_PaymentSuccess</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_PaymentFailed</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <!-- Script Task 4: Reserve Stock (Payment Success Path) -->
+    <bpmn2:scriptTask id="ServiceTask_ReserveStock" name="Reserve Stock" scriptFormat="java">
+      <bpmn2:incoming>Flow_PaymentSuccess</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_5</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("Reserving stock...");</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Script Task 5: Create Order -->
+    <bpmn2:scriptTask id="ServiceTask_CreateOrder" name="Create Order" scriptFormat="java">
+      <bpmn2:incoming>Flow_5</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_6</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("Creating order...");</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Script Task 6: Send Notification -->
+    <bpmn2:scriptTask id="ServiceTask_SendNotification" name="Send Notification" scriptFormat="java">
+      <bpmn2:incoming>Flow_6</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_7</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("Sending notification...");</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- Script Task 7: Publish to Kafka -->
+    <bpmn2:scriptTask id="ServiceTask_PublishKafka" name="Publish Order to Kafka" scriptFormat="java">
+      <bpmn2:incoming>Flow_7</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_8</bpmn2:outgoing>
+      <bpmn2:script>System.out.println("Publishing order to Kafka...");</bpmn2:script>
+    </bpmn2:scriptTask>
+
+    <!-- End Event: Success -->
+    <bpmn2:endEvent id="EndEvent_Success" name="Checkout Complete">
+      <bpmn2:incoming>Flow_8</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <!-- End Event: Payment Failed -->
+    <bpmn2:endEvent id="EndEvent_PaymentFailed" name="Payment Failed">
+      <bpmn2:incoming>Flow_PaymentFailed</bpmn2:incoming>
+      <bpmn2:terminateEventDefinition/>
+    </bpmn2:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn2:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="ServiceTask_ValidateCart"/>
+    <bpmn2:sequenceFlow id="Flow_2" sourceRef="ServiceTask_ValidateCart" targetRef="ServiceTask_CalculateTotal"/>
+    <bpmn2:sequenceFlow id="Flow_3" sourceRef="ServiceTask_CalculateTotal" targetRef="ServiceTask_ProcessPayment"/>
+    <bpmn2:sequenceFlow id="Flow_4" sourceRef="ServiceTask_ProcessPayment" targetRef="Gateway_PaymentCheck"/>
+
+    <bpmn2:sequenceFlow id="Flow_PaymentSuccess" name="Success" sourceRef="Gateway_PaymentCheck" targetRef="ServiceTask_ReserveStock">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression">return paymentSuccess == true;</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+
+    <bpmn2:sequenceFlow id="Flow_PaymentFailed" name="Failed" sourceRef="Gateway_PaymentCheck" targetRef="EndEvent_PaymentFailed"/>
+
+    <bpmn2:sequenceFlow id="Flow_5" sourceRef="ServiceTask_ReserveStock" targetRef="ServiceTask_CreateOrder"/>
+    <bpmn2:sequenceFlow id="Flow_6" sourceRef="ServiceTask_CreateOrder" targetRef="ServiceTask_SendNotification"/>
+    <bpmn2:sequenceFlow id="Flow_7" sourceRef="ServiceTask_SendNotification" targetRef="ServiceTask_PublishKafka"/>
+    <bpmn2:sequenceFlow id="Flow_8" sourceRef="ServiceTask_PublishKafka" targetRef="EndEvent_Success"/>
+
+  </bpmn2:process>
+
+  <!-- BPMN Diagram (Visual Layout) -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="checkoutProcess">
+
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="100" y="100" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="80" y="143" width="76" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_ValidateCart_di" bpmnElement="ServiceTask_ValidateCart">
+        <dc:Bounds x="200" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_CalculateTotal_di" bpmnElement="ServiceTask_CalculateTotal">
+        <dc:Bounds x="360" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_ProcessPayment_di" bpmnElement="ServiceTask_ProcessPayment">
+        <dc:Bounds x="520" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_PaymentCheck_di" bpmnElement="Gateway_PaymentCheck" isMarkerVisible="true">
+        <dc:Bounds x="680" y="93" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="665" y="63" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_ReserveStock_di" bpmnElement="ServiceTask_ReserveStock">
+        <dc:Bounds x="800" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_CreateOrder_di" bpmnElement="ServiceTask_CreateOrder">
+        <dc:Bounds x="960" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_SendNotification_di" bpmnElement="ServiceTask_SendNotification">
+        <dc:Bounds x="1120" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="ServiceTask_PublishKafka_di" bpmnElement="ServiceTask_PublishKafka">
+        <dc:Bounds x="1280" y="78" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="1440" y="100" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1415" y="143" width="86" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_PaymentFailed_di" bpmnElement="EndEvent_PaymentFailed">
+        <dc:Bounds x="687" y="240" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="670" y="283" width="70" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges/Flows -->
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="136" y="118"/>
+        <di:waypoint x="200" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="300" y="118"/>
+        <di:waypoint x="360" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="460" y="118"/>
+        <di:waypoint x="520" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
+        <di:waypoint x="620" y="118"/>
+        <di:waypoint x="680" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_PaymentSuccess_di" bpmnElement="Flow_PaymentSuccess">
+        <di:waypoint x="730" y="118"/>
+        <di:waypoint x="800" y="118"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="745" y="100" width="40" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_PaymentFailed_di" bpmnElement="Flow_PaymentFailed">
+        <di:waypoint x="705" y="143"/>
+        <di:waypoint x="705" y="240"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="710" y="180" width="30" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
+        <di:waypoint x="900" y="118"/>
+        <di:waypoint x="960" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
+        <di:waypoint x="1060" y="118"/>
+        <di:waypoint x="1120" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
+        <di:waypoint x="1220" y="118"/>
+        <di:waypoint x="1280" y="118"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8">
+        <di:waypoint x="1380" y="118"/>
+        <di:waypoint x="1440" y="118"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn2:definitions>

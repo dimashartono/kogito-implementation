@@ -1,0 +1,105 @@
+quarkus:
+  application:
+    name: kafka-stream-processor
+    version: 1.0.0
+
+  http:
+    port: 8081
+    cors: true
+
+  datasource:
+    db-kind: postgresql
+    username: ecommerce_user
+    password: ecommerce_pass
+    jdbc:
+      url: jdbc:postgresql://localhost:5432/ecommerce_orders
+      max-size: 16
+      min-size: 2
+
+  hibernate-orm:
+    database:
+      generation: update
+    log:
+      sql: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  smallrye-messaging:
+    incoming:
+      raw-orders:
+        connector: smallrye-kafka
+        topic: raw-orders
+        value:
+          deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        group:
+          id: order-stream-processor-group
+        auto:
+          offset:
+            reset: earliest
+        enable:
+          auto:
+            commit: true
+        failure-strategy: ignore
+
+    outgoing:
+      validated-orders:
+        connector: smallrye-kafka
+        topic: validated-orders
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+
+      fraud-alerts:
+        connector: smallrye-kafka
+        topic: fraud-alerts
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  smallrye-health:
+    ui:
+      enable: true
+
+  micrometer:
+    export:
+      prometheus:
+        enabled: true
+
+  swagger-ui:
+    always-include: true
+    path: /swagger-ui
+
+  log:
+    level: INFO
+    category:
+      "com.ecommerce":
+        level: DEBUG
+    console:
+      format: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n"
+      json: false
+
+app:
+  fraud-detection:
+    enabled: true
+    high-risk-threshold: 70.0
+    suspicious-threshold: 50.0
+
+  processing:
+    batch-size: 100
+    retry-attempts: 3
+
+"%dev":
+  quarkus:
+    log:
+      level: DEBUG
+
+"%prod":
+  quarkus:
+    log:
+      level: INFO
+    datasource:
+      jdbc:
+        url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/ecommerce_orders}
+      username: ${DATABASE_USER:ecommerce_user}
+      password: ${DATABASE_PASSWORD:ecommerce_pass}
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
