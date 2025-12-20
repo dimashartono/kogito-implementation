@@ -172,6 +172,8 @@ GET http://localhost:8081/q/health
 
 The checkout process is defined in [`kogito-checkout-service/src/main/resources/com/ecommerce/checkout/checkout-process.bpmn`](kogito-checkout-service/src/main/resources/com/ecommerce/checkout/checkout-process.bpmn)
 
+![Checkout Process](kogito-checkout-service/src/main/resources/META-INF/processSVG/com/ecommerce/checkout/checkout-process.svg)
+
 
 ## Kafka Topics
 
