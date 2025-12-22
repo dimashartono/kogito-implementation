@@ -71,3 +71,6 @@ logs/
 # Test coverage
 .jacoco/
 *.exec
+
+# Change JAVA_HOME 
+setenv.ps1
