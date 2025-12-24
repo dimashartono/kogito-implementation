@@ -1,0 +1,62 @@
+quarkus:
+  application:
+    name: kogito-checkout-service
+    version: 1.0.0
+
+  http:
+    port: 8082
+    cors: true
+
+  kogito:
+    service:
+      url: http://localhost:8082
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+  smallrye-messaging:
+    outgoing:
+      raw-orders-out:
+        connector: smallrye-kafka
+        topic: raw-orders
+        value:
+          serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  smallrye-health:
+    ui:
+      enable: true
+
+  micrometer:
+    export:
+      prometheus:
+        enabled: true
+
+  swagger-ui:
+    always-include: true
+    path: /swagger-ui
+
+  log:
+    level: INFO
+    category:
+      "com.ecommerce":
+        level: DEBUG
+      "org.kie.kogito":
+        level: INFO
+    console:
+      format: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n"
+      json: false
+
+"%dev":
+  quarkus:
+    log:
+      level: DEBUG
+      category:
+        "org.kie.kogito":
+          level: DEBUG
+
+"%prod":
+  quarkus:
+    log:
+      level: INFO
+    kafka:
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
